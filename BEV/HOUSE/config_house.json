@@ -1,0 +1,124 @@
+{
+	"plc_ip" : "120.151.203.25",
+    "keyence_ip" : {
+        "3" : "172.19.145.80",
+        "4" : "172.19.146.81"
+       
+    },
+    "mnTagPrefix" : {
+        "3" : "SN25PHXVPC1.CAM01",
+        "4" : "SN25PHXVPC1.CAM02"
+    },
+    "HMI_csv" : "",
+    "FTP_directory" : "E:\\FTP\\",
+    "FTP_extension" : "\\xg\\result",
+    "tags": {
+        "LoadProgram" : "LOAD_PROGRAM",
+        "StartProgram" : "START_PROGRAM",
+        "EndProgram" : "END_PROGRAM",
+        "AbortProgram" : "ABORT_PROGRAM",
+        "Aborted" : "ABORTED",
+        "Reset" : "RESET",
+        "EndScan" : "END_SCAN",
+        "PartType" : "PART_TYPE",
+        "PartProgram" : "PART_PROGRAM",
+        "ScanNumber" : "SCAN_NUMBER",
+        "ScanSet" : "SCAN_SET",
+        "PUN" : "PUN{64}",
+        "GMPartNumber" : "GM_PART_NUMBER{8}",
+        "Module" : "MODULE",
+        "MasterPart" : "MASTER_PART",
+        "PlantCode" : "PLANT_CODE",
+        "Month" : "TIMESTAMP_MONTH",
+        "Day" : "TIMESTAMP_DAY",
+        "Year" : "TIMESTAMP_YEAR",
+        "Hour" : "TIMESTAMP_HOUR",
+        "Minute" : "TIMESTAMP_MINUTE",
+        "Second" : "TIMESTAMP_SECOND",
+        "Ready" : "READY",
+        "Busy" : "BUSY",
+        "Done" : "DONE",
+        "Pass" : "PASS",
+        "Fail" : "FAIL",
+        "MaskFail" : "MASK_FAIL",
+        "SizeFail" : "SIZE_FAIL",
+        "SpacingFail" : "SPACING_FAIL",
+        "DensityFail" : "DENSITY_FAIL",
+        "DefectNumber" : "DEFECT_NUMBER",
+        "DefectSize" : "DEFECT_SIZE",
+        "DefectZone" : "DEFECT_ZONE",
+        "Faulted" : "FAULTED",
+        "PhoenixFltCode" : "PHOENIX_FLT_CODE",
+        "KeyenceFltCode" : "KEYENCE_FLT_CODE",
+        "FaultStatus" : "FAULT_STATUS",
+        "HeartBeat" : "HEARTBEAT"
+
+
+
+
+
+    },
+
+    "part_type_switch" : {
+        "1" : "X80P", 
+        "51" : "X80P",
+        "31" : "X80P",
+        "41" : "X80P",
+        "2": "X80P",
+        "7" : "X81",
+        "57" : "X81",
+        "37" : "X81",
+        "47" : "X81"
+    },
+
+    "scan_namesX80P" : {
+        "201": "H260-A-B",
+        "202": "H240-A-B",
+        "203": "H220-C-D",
+        "204": "H200-H210",
+        "401": "H440-A-B",
+        "402": "H490-A-B",
+        "403": "H490-C-D",
+        "404": "H442-A-B",
+        "405": "H441-H436",
+        "406": "H431-H432",
+        "407": "H433-H434",
+        "408": "H435-H443",
+        "409": "H460",
+        "410": "H450-H470",
+        "301": "S-Face-A-B",
+        "302": "S-Face-E-F",
+        "303": "S-Face-G-H",
+        "304": "S-Face-C-D",
+        "305": "S-Face-I-J",
+        "306": "H334-A-B",
+        "501": "MFG-Pad-A-B",
+        "101": "H130A-B"
+      },
+
+    
+    "scan_namesX81" : {
+        "201": "H240-A-B",
+        "401": "H435-H440",
+        "402": "H490-A-B",
+        "403": "H490-C-D",
+        "404": "H442-A-B",
+        "405": "H441-H436",
+        "406": "H460",
+        "407": "H450-H470",
+        "408": "H443-H444",
+        "409": "H433-434",
+        "410": "H431-H432",
+        "301": "S-Face-A-B",
+        "302": "S-Face-E-F",
+        "303": "S-Face-G-H",
+        "304": "S-Face-C-D",
+        "305": "S-Face-I-J",
+        "306": "H334-A-B",
+        "501": "MFG-Pad-A-B",
+        "101": "H130-A-B"
+      }
+      
+
+
+}
