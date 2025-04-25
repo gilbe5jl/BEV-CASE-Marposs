@@ -1,6 +1,7 @@
 from pycomm3 import LogixDriver, CommError
 from pycomm3.tag import Tag
-import tag_lists
+from tag_lists import TagList, TagMode
+from enum import Enum, auto
 import sys
 import os
 import json
@@ -18,6 +19,13 @@ def handle_exceptions(func):
 
 
 class PhoenixPLC:
+    class FaultType(Enum):
+        GENERAL = auto()
+        COMMS = auto()
+    class ResetType(Enum):
+        FAULT_RESET = auto()
+        PROGRAM_RESET = auto()
+        CYCLE_RESET = auto()
     def __init__(self,station_num:str):
         self.station_num = station_num
         self.config_info = self.get_config()
@@ -29,6 +37,7 @@ class PhoenixPLC:
         self.write_prefix = f"{self.prefix}.I."
         self.check_pass_tag = f"{self.write_prefix}CHECK_PASS."
         self.heartbeat_tag = f'{self.write_prefix}HEARTBEAT'
+        self.tag_list = TagList()
 
     def get_config(machine_num:str) -> dict:
         with open(os.path.join(sys.path[0], f'config.json'), "r") as config_file:
@@ -59,7 +68,7 @@ class PhoenixPLC:
         Reads all tags from the PLC using the pycomm3 library.
         :return: A dictionary containing the tag names and their corresponding values.
         """
-        tag_suffix = tag_lists.output_tags()
+        tag_suffix = self.tag_list.outputs()
         tags = [f"{self.read_prefix}{tag}" for tag in tag_suffix] # list comprehension of tags to read
         results_list = self.plc.read(*tags) # splat-read: tag, value, type, error
         read_map = {}
@@ -85,13 +94,13 @@ class PhoenixPLC:
     #END 
 
     @handle_exceptions
-    def write_plc(self,results: dict) -> None:
+    def write_batch(self,results: dict) -> None:
         """
         Writes the results to the PLC using the pycomm3 library.
         :param results: A dictionary containing the tag names and their corresponding values.
         :return: None
         """
-        input_tags = tag_lists.input_tag_list(1)
+        input_tags = self.tag_list.inputs(TagMode.BASIC)
         for i in input_tags:
             tag = f"{self.write_prefix}{i}"
             if i not in results:
@@ -101,7 +110,7 @@ class PhoenixPLC:
     # END write_plc
 
     @handle_exceptions
-    def write_plc_single(self,tag_name:str, tag_val) -> None:
+    def write_single(self,tag_name:str, tag_val) -> None:
         """
         Writes a single tag to the PLC using the pycomm3 library.
         :param tag_name: The name of the tag to write.
@@ -121,7 +130,7 @@ class PhoenixPLC:
             'Ready': True
         }
         for tag_name, tag_val in tags.items():
-            self.write_plc_single(tag_name, tag_val)
+            self.write_single(tag_name, tag_val)
     #END set_bool_tags
 
     @handle_exceptions
@@ -143,16 +152,16 @@ class PhoenixPLC:
             'Ready': True,
         }
         for tag_name, tag_val in fault_tag_data.items():
-            self.write_plc_single(tag_name, tag_val)
+            self.write_single(tag_name, tag_val)
     #END fault_flush
 
     @handle_exceptions
-    def write_plc_flush(self) -> None:
+    def write_flush(self) -> None:
         """
         Flushes PLC data mirroring tags (to 0)
         """
         default = {'PUN{64}': [0] * 64 }
-        input_tags = tag_lists.input_tag_list(2)
+        input_tags = self.tag_list.inputs(TagMode.FULL)
         for tag in input_tags:
             if tag == 'PUN':
                 self.plc.write((self.write_prefix + tag, default['PUN{64}']))
@@ -161,35 +170,37 @@ class PhoenixPLC:
     #END write_plc_flush
 
     @handle_exceptions
-    def reset_plc_tags(self,reset_type:str) -> None:
-        """
-        Must pass in string alpha, beta, gamma
-        """
-        alpha = {'Faulted': False,'PhoenixFltCode': 0,'KeyenceFltCode': 0,'FaultStatus': 0}
-        beta = {'Reset': False}
-        beta.update(alpha)
-        gamma = {'Done': False,'Pass': False,'Busy': False,'Fail': False,'Aborted': False}
-        reset_groups = {'alpha':alpha,'beta':beta,'gamma':gamma}
-        if reset_type in ('alpha', 'beta'):
+    def reset_tags(self, reset_type: 'PhoenixPLC.ResetType') -> None:
+        fault_reset = {'Faulted': False, 'PhoenixFltCode': 0, 'KeyenceFltCode': 0, 'FaultStatus': 0}
+        program_reset = {'Reset': False, **fault_reset}
+        cycle_reset = {'Done': False, 'Pass': False, 'Busy': False, 'Fail': False, 'Aborted': False}
+
+        reset_groups = {
+            self.ResetType.FAULT_RESET: fault_reset,
+            self.ResetType.PROGRAM_RESET: program_reset,
+            self.ResetType.CYCLE_RESET: cycle_reset
+        }
+
+        if reset_type in (self.ResetType.FAULT_RESET, self.ResetType.PROGRAM_RESET):
             self.write_plc_flush()
-            for tag,tag_val in reset_groups[reset_type].items():
+            for tag, tag_val in reset_groups[reset_type].items():
                 self.write_plc_single(tag, tag_val)
-        elif reset_type == 'gamma':
-            for tag,tag_val in gamma.items():
+        elif reset_type == self.ResetType.CYCLE_RESET:
+            for tag, tag_val in cycle_reset.items():
                 self.write_plc_single(tag, tag_val)
-        
+
     @handle_exceptions
-    def write_plc_fault(self, fault_type: int) -> None:
+    def write_fault(self, type: 'PhoenixPLC.FaultType') -> None:
         fault_tags = ['PhoenixFltCode', 'FaultStatus', 'Faulted']
         fault_vals = {
-            2: [2, 2, True],
-            3: [3, 3, True]
+            self.FaultType.GENERAL: [2, 2, True],
+            self.FaultType.COMMS: [3, 3, True]
         }
         # Optionally handle an invalid fault_type:
-        if fault_type not in fault_vals:
-            raise ValueError(f"Invalid fault_type: {fault_type}")
-        for tag, tag_val in zip(fault_tags, fault_vals[fault_type]):
-            self.write_plc_single(tag, tag_val)
+        if type not in fault_vals:
+            raise ValueError(f"Invalid Fault Type: {type}") ; return false
+        for tag, tag_val in zip(fault_tags, fault_vals[type]):
+            self.write_single(tag, tag_val)
         
     @handle_exceptions
     def flush_check_pass(self)->None:
@@ -211,14 +222,14 @@ class PhoenixPLC:
 
     @handle_exceptions
     def write_results(self,results:list):
-        result_tag_list = tag_lists.result_tags()
+        result_tag_list = self.tag_list.results()
         for i in range(len(result_tag_list)):
-            self.write_plc_single(result_tag_list[i], results[i])
-        self.write_plc_single('Done', True)
+            self.write_single(result_tag_list[i], results[i])
+        self.write_single('Done', True)
         print(f'KEYENCE Results written to PLC\n')
 
     @handle_exceptions
-    def write_plc_heartbeat(self) -> bool:
+    def write_heartbeat(self) -> bool:
         """
         """
         self.plc.write((self.heartbeat_tag, True))
@@ -240,5 +251,8 @@ class PhoenixPLC:
         """
         """
         if fault_code != None:
-            self.write_plc_single('Faulted', True)
-            self.write_plc_single('KeyenceFltCode', fault_code)
+            self.write_single('Faulted', True)
+            self.write_single('KeyenceFltCode', fault_code)
+
+# input_tags = input_tag_list(TagMode.FULL)
+# print(input_tags)

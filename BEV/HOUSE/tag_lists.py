@@ -1,44 +1,71 @@
 import json
 import sys
 import os
+from enum import Enum, auto
 
+class TagMode(Enum):
+    BASIC = auto()
+    FULL = auto()
+class TagList:
+    def __init__(self):
+        self.tags = self.get_config()
 
-
-with open(os.path.join(sys.path[0], 'config.json'), "r") as config_file:
-    config_data = config_file.read()
-    config_vars = json.loads(config_data)
-tags = config_vars['tags']
-
-def output_tags():
-    returnList = [
-        tags['LoadProgram'],
-        tags['StartProgram'],
-        tags['EndProgram'],
-        tags['AbortProgram'],
-        tags['Reset'],
-        tags['PartType'],
-        tags['PartProgram'],
-        tags['ScanNumber'],
-        tags['PUN'],
-        tags['GMPartNumber'],
-        tags['Module'],
-        tags['PlantCode'],
-        tags['Month'],
-        tags['Day'],
-        tags['Year'],
-        tags['Hour'],
-        tags['Minute'],
-        tags['Second']
-    ]
-    return returnList
-
-def input_tag_list(switch):
-    if switch == 1:
+    def get_config(self):
+        with open(os.path.join(sys.path[0], 'config.json'), "r") as config_file:
+            config_data = config_file.read()
+            config_info = json.loads(config_data)
+        return config_info.get('tags', {})
+    # def fault_tag_list(self):
+    #     returnList = [
+    #         self.tags['Faulted'],
+    #         self.tags['PhoenixFltCode'],
+    #         self.tags['KeyenceFltCode']
+    #     ]
+    #     return returnList
+    def results(self): 
         returnList = [
+            'DefectNumber',
+            'DefectSize',
+            'DefectZone',
+            'Pass',
+            'Fail',
+            'MaskFail',
+            'SizeFail',
+            'SpacingFail',
+            'DensityFail'
+        ]
+        return returnList
+    
+    def outputs(self):
+        tags = self.tags
+        returnList = [
+            tags['LoadProgram'],
+            tags['StartProgram'],
+            tags['EndProgram'],
+            tags['AbortProgram'],
+            tags['Reset'],
             tags['PartType'],
             tags['PartProgram'],
             tags['ScanNumber'],
-            #tags['PUN'],
+            tags['PUN'],
+            tags['GMPartNumber'],
+            tags['Module'],
+            tags['PlantCode'],
+            tags['Month'],
+            tags['Day'],
+            tags['Year'],
+            tags['Hour'],
+            tags['Minute'],
+            tags['Second']
+        ]
+        return returnList
+    
+    def inputs(self,mode: TagMode):
+        tags = self.tags
+        base_tags = [
+            tags['PartType'],
+            tags['PartProgram'],
+            tags['ScanNumber'],
             'PUN',
             tags['Module'],
             tags['PlantCode'],
@@ -49,45 +76,6 @@ def input_tag_list(switch):
             tags['Minute'],
             tags['Second'],
         ]
-    elif switch == 2:
-        returnList = [
-            tags['PartType'],
-            tags['PartProgram'],
-            tags['ScanNumber'],
-            #tags['PUN'],
-            'PUN',
-            tags['Module'],
-            tags['PlantCode'],
-            tags['Month'],
-            tags['Day'],
-            tags['Year'],
-            tags['Hour'],
-            tags['Minute'],
-            tags['Second'],
-            tags['Busy'],
-            tags['Done']
-        ]
-    return returnList
-
-def result_tags(): 
-    returnList = [
-        
-        'DefectNumber',
-        'DefectSize',
-        'DefectZone',
-        'Pass',
-        'Fail',
-        'MaskFail',
-        'SizeFail',
-        'SpacingFail',
-        'DensityFail'
-    ]
-    return returnList
-
-def fault_tag_list():
-    returnList = [
-        tags['Faulted'],
-        tags['PhoenixFltCode'],
-        tags['KeyenceFltCode']
-    ]
-    return returnList
+        if mode == TagMode.FULL:
+            base_tags.extend([tags['Busy'], tags['Done']])
+        return base_tags

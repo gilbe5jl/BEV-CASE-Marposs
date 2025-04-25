@@ -27,7 +27,7 @@ def handle_exceptions(func):
             return func(*args, **kwargs)
         except (TimeoutError, socket.timeout, ConnectionRefusedError, ConnectionResetError, 
                 ConnectionError, ConnectionAbortedError, OSError, socket.gaierror) as error:
-            print(f"KEYENCE CommError: {error}")
+            print(f"KEYENCE CommError : {error}")
             return False
     return wrapper
     
@@ -57,11 +57,12 @@ class PhoenixKeyence:
     def connect(self):
         self.sock.settimeout(self.socket_timeout_seconds)
         self.sock.connect((self.keyence_ip, 8500))
-
+        print(f'KEYENCE: Connection open for ({self.keyence_ip})\n')
+    
     @handle_exceptions
     def disconnect(self):
         self.sock.close()
-        print(f'KEYENCE: Disconnected from {self.keyence_ip}.\n')
+        print(f'KEYENCE: Connection closed for ({self.keyence_ip})\n')
 
     def string_generator(self,part_type:int,part_program):
         try:

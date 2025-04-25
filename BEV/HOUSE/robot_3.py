@@ -12,19 +12,17 @@ from export_data import *
 from utils import *
 import datetime
 import time as sleep_time  # Rename the time module import
+from enum import Enum, auto
 
 
-
-# def read_config()->dict:
-#     with open(os.path.join(sys.path[0], 'config.json'), "r") as config_file:
-#         config_data = config_file.read()
-#         config_map = json.loads(config_data)
-#         return config_map
 class Cycler:
+    class ResetType(Enum):
+        FAULT_RESET = auto()
+        PROGRAM_RESET = auto()
     def __init__(self, station_num:str,logger:PhoenixLogger):   
         self.station_num = station_num
         self.logger = logger
-        self.current_stage = 0
+        self.connection_timer = datetime.datetime.now() 
         self.config_info = self.read_config()
         self.bravo_stage = Bravo(self.station_num,self.logger)
         self.stop_event = threading.Event()
@@ -38,9 +36,60 @@ class Cycler:
         '''
         Reset the current stage to 0, set the stop event and log the reset
         '''
-        self.current_stage = 0
         self.stop_event.set()
-        self.logger.log_print(f'[STAGE:{self.current_stage}] RESET DETECTED\n')
+        self.logger.log_print(self.station_num,'Reset detected!')
+
+    def handle_reset(self, reset_type: 'Cycler.ResetType') -> bool:
+        if self.stop_event.is_set():
+            return True
+
+        bravo_reset_map = {
+            self.ResetType.FAULT_RESET: self.bravo_stage.ResetType.FAULT_RESET,
+            self.ResetType.PROGRAM_RESET: self.bravo_stage.ResetType.PROGRAM_RESET,
+        }
+
+        if reset_type in bravo_reset_map:
+            if self.bravo_stage.reset_check(bravo_reset_map[reset_type]):
+                self.set_stop_event()
+                return True
+
+        return False
+    
+    def stage_zero(self):
+        if self.handle_reset(self.ResetType.FAULT_RESET): return False
+        load_program = self.bravo_stage.check_load() 
+        while(load_program != True): #Looping until LOAD PROGRAM goes high  # Data from PLC is only valid while LOAD_PROGRAM is low
+            if self.handle_reset(self.ResetType.FAULT_RESET): break
+            load_program = self.bravo_stage.check_load()
+            sleep_time.sleep(.050) # 5ms pause between reads
+        if self.stop_event.is_set(): return False
+        if (self.bravo_stage.zeta() == False): self.set_stop_event() ; return False # reset threads if invalid part type                     
+        self.bravo_stage.iota() 
+        return True
+    
+    def stage_one(self):
+        start_program = self.bravo_stage.check_start_program() #check for PLC(START_PROGRAM) to go high
+        while (start_program != True): #looping until PLC(START_PROGRAM) goes high
+            if self.handle_reset(self.ResetType.PROGRAM_RESET): break
+            start_program = self.bravo_stage.check_start_program() #check for PLC(START_PROGRAM) to go high
+            sleep_time.sleep(0.050)
+        if self.stop_event.is_set(): return False
+        self.bravo_stage.kappa()
+        self.bravo_stage.omicron()
+        self.bravo_stage.sigma()
+        return True 
+    
+    def stage_two(self):
+        # elif (self.current_stage == 2):  # Final Stage, reset to Stage 0 once PLC(END_PROGRAM) and PHOENIX(DONE) have been set low
+        end_program = self.bravo_stage.omega() #Raise DONE high 
+        while (end_program != True): #Looping until PLC(END_PROGRAM) goes high
+            if self.handle_reset(self.ResetType.PROGRAM_RESET): break
+            end_program = self.bravo_stage.check_end_program() # continuous PLC read
+            sleep_time.sleep(0.050)  # 5ms pause between reads
+        if self.stop_event.is_set(): return False
+        self.bravo_stage.epsilon()
+        return True # reset PLC tags to end cycle, inspection cycle complete
+
     def create_cycle(self):
         bravo_stage = self.bravo_stage
         self.stop_event.clear()
@@ -49,43 +98,14 @@ class Cycler:
             # setKeyenceRunMode(station_num, sock)
         bravo_stage.alpha() #reset PLC tags to start cycle and reset connection timer, raise ready
         while(True):
-            if(self.stop_event.is_set()): break #check reset at beginning of cycle
-            if (bravo_stage.reset_check('alpha')): self.set_stop_event() #check for reset at beginning of cycle
             #################### STAGE ZERO ####################   
-            if(self.current_stage == 0):
-                load_program = bravo_stage.check_load() 
-                while(load_program != True): #Looping until LOAD PROGRAM goes high  # Data from PLC is only valid while LOAD_PROGRAM is low
-                    if (self.stop_event.is_set()): break #check for reset at beginning of cycle
-                    load_program = bravo_stage.check_load()
-                    if (bravo_stage.reset_check('alpha')): self.set_stop_event() #check for reset while waiting for load program to go high
-                    sleep_time.sleep(.050) # 5ms pause between reads
-                if (self.stop_event.is_set()): break #check for reset even is load_program is true
-                if (bravo_stage.zeta() == False): self.set_stop_event() # reset threads if invalid part type                     
-                bravo_stage.iota() 
-                self.current_stage += 1 #increment current stage to proceed forward
+            if (self.stage_zero()==False): break #waiting for PLC(LOAD_PROGRAM) to go high
             #################### STAGE ONE ####################
-            elif (self.current_stage == 1):
-                start_program = bravo_stage.check_start_program() #check for PLC(START_PROGRAM) to go high
-                while (start_program != True): #looping until PLC(START_PROGRAM) goes high
-                    if (self.stop_event.is_set()): break #check for reset at beginning of cycle
-                    start_program = bravo_stage.check_start_program() #check for PLC(START_PROGRAM) to go high
-                    if (bravo_stage.reset_check('beta')): self.set_stop_event() #check for reset during cycle # type_two reset for stage 1
-                    sleep_time.sleep(0.050)
-                bravo_stage.kappa()
-                bravo_stage.omicron()
-                bravo_stage.sigma()
-                self.current_stage += 1 #increment current stage to proceed forward
+            if (self.stage_one()==False): break #waiting for PLC(START_PROGRAM) to go high
             #################### END STAGE ONE ####################
-            elif (self.current_stage == 2):  # Final Stage, reset to Stage 0 once PLC(END_PROGRAM) and PHOENIX(DONE) have been set low
-                end_program = bravo_stage.omega() #Raise DONE high 
-                while (end_program != True): #Looping until PLC(END_PROGRAM) goes high
-                    if self.stop_event.is_set(): break
-                    end_program = bravo_stage.check_end_program() # continuous PLC read
-                    if (bravo_stage.reset_check('beta')): self.set_stop_event() # type_two reset for stage 2
-                    sleep_time.sleep(0.050)  # 5ms pause between reads
-                self.current_stage = bravo_stage.epsilon()  # reset PLC tags to end cycle  # cycle complete, reset to stage 0
-            # if abs(datetime.datetime.now() - connection_timer).total_seconds() > 86400: connection_timer = datetime.datetime.now() ; self.set_stop_event() # if connected for 24 hours perform restart
-            if (self.stop_event.is_set()): break  #check for reset at beginning of cycle
+            if (self.stage_two()==False): break #waiting for PLC(END_PROGRAM) to go high
+            if abs(datetime.datetime.now() - self.connection_timer).total_seconds() > 86400: self.connection_timer = datetime.datetime.now() ; self.set_stop_event() # if connected for 24 hours perform restart
+            if self.stop_event.is_set(): break  #check for reset at beginning of cycle
             sleep_time.sleep(0.005)  
 
   
@@ -140,4 +160,3 @@ class Station:
 #     logger = PhoenixLogger(['3','4'])
 #     while True:
 #         Station('3',logger).start()
-
