@@ -2,9 +2,7 @@ from pycomm3 import LogixDriver, CommError
 from pycomm3.tag import Tag
 from tag_lists import TagList, TagMode
 from enum import Enum, auto
-import sys
-import os
-import json
+from config_loader import Config
 
 def handle_exceptions(func):
     def wrapper(*args, **kwargs):
@@ -28,7 +26,8 @@ class PhoenixPLC:
         CYCLE_RESET = auto()
     def __init__(self,station_num:str):
         self.station_num = station_num
-        self.config_info = self.get_config()
+        # self.config_info = self.get_config()
+        self.config_info = Config().get()
         self.plc_ip = self.config_info['plc_ip']
         self.plc = LogixDriver(self.plc_ip)
         self.error_msg = "PLC Communication error:"
@@ -38,12 +37,8 @@ class PhoenixPLC:
         self.check_pass_tag = f"{self.write_prefix}CHECK_PASS."
         self.heartbeat_tag = f'{self.write_prefix}HEARTBEAT'
         self.tag_list = TagList()
-
-    def get_config(machine_num:str) -> dict:
-        with open(os.path.join(sys.path[0], f'config.json'), "r") as config_file:
-            config_data = config_file.read()
-            config_info = json.loads(config_data)
-        return config_info
+        self.fault_flush_tags = self.tag_list.fault_tag_list()
+        self.bool_tags = self.tag_list.bool_tag_list()
 
     @handle_exceptions
     def open_connection(self)-> None:
@@ -122,14 +117,9 @@ class PhoenixPLC:
 
     @handle_exceptions
     def set_bool_tags(self) -> None:
-        tags = {
-            'Done': False,
-            'Pass': False,
-            'Busy': False,
-            'Fail': False,
-            'Ready': True
-        }
-        for tag_name, tag_val in tags.items():
+        """
+        """
+        for tag_name, tag_val in self.bool_tags.items():
             self.write_single(tag_name, tag_val)
     #END set_bool_tags
 
@@ -139,19 +129,7 @@ class PhoenixPLC:
         Flushes PLC fault tags to default values.
         :return: None
         """
-        fault_tag_data = {
-            'Faulted': False,
-            'PhoenixFltCode': 0,
-            'KeyenceFltCode': 0,
-            'FaultStatus': 0,
-            'Done': False,
-            'Pass': False,
-            'Busy': False,
-            'Fail': False,
-            'PartProgram': 0,
-            'Ready': True,
-        }
-        for tag_name, tag_val in fault_tag_data.items():
+        for tag_name, tag_val in self.fault_flush_tags.items():
             self.write_single(tag_name, tag_val)
     #END fault_flush
 

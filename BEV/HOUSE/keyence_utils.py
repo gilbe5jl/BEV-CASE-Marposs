@@ -16,10 +16,7 @@
 '''
 import socket
 import time
-import sys
-import os
-import json
-
+from config_loader import Config
 def handle_exceptions(func):
     def wrapper(*args, **kwargs):
         self = args[0]  # assuming the first argument is 'self'
@@ -35,17 +32,13 @@ class PhoenixKeyence:
     def __init__(self, station_num:str):
         self.station_num = station_num
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Keyence socket connections
-        self.config_info = self.read_config()
+        self.config_info = Config().get()
         self.keyence_ip = self.config_info['keyence_ip'][station_num]
         self.socket_timeout_seconds = 60 # seconds
         self.part_type = None
         self.connect()
 
-    def read_config(self) -> dict:
-        with open(os.path.join(sys.path[0], 'config.json'), "r") as config_file:
-            config_data = config_file.read()
-            config_info = json.loads(config_data)
-            return config_info
+
         
     def format_data(self,data):
         data_str = str(data).split('.')

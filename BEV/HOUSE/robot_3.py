@@ -13,6 +13,7 @@ from utils import *
 import datetime
 import time as sleep_time  # Rename the time module import
 from enum import Enum, auto
+from config_loader import Config
 
 
 class Cycler:
@@ -23,15 +24,11 @@ class Cycler:
         self.station_num = station_num
         self.logger = logger
         self.connection_timer = datetime.datetime.now() 
-        self.config_info = self.read_config()
+        self.config_info = Config().get()
         self.bravo_stage = Bravo(self.station_num,self.logger)
         self.stop_event = threading.Event()
 
-    def read_config(self)->dict:
-        with open(os.path.join(sys.path[0], 'config.json'), "r") as config_file:
-            config_data = config_file.read()
-            config_map = json.loads(config_data)
-            return config_map
+
     def set_stop_event(self):
         '''
         Reset the current stage to 0, set the stop event and log the reset

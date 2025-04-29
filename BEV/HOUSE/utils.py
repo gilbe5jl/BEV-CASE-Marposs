@@ -13,7 +13,7 @@ import socket
 import time
 from log_handler import PhoenixLogger
 from enum import Enum, auto
-
+from config_loader import Config
 
 #############################################
 
@@ -27,7 +27,7 @@ class Bravo:
         self.machine_num = machine_num
         self.keyence = PhoenixKeyence(self.machine_num)
         self.plc = PhoenixPLC(self.machine_num)
-        self.config_info = self.read_config()
+        self.config_info = Config().get()
         self.part_program = None
         self.tag_data = None
         self.part_type = None
@@ -36,11 +36,6 @@ class Bravo:
         self.keyence_string = None
         self.connection_timer = None
 
-    def read_config(self)->dict:
-        with open(os.path.join(sys.path[0], 'config.json'), "r") as config_file:
-            config_data = config_file.read()
-            config_vars = json.loads(config_data)
-            return config_vars
     def int_array_to_str(self,int_array:list) -> str:
         """
         Convert a list of integers to a string of ASCII characters (PLC int-arrays into ASCII string for OPC)

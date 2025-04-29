@@ -1,20 +1,14 @@
-import json
-import sys
-import os
 from enum import Enum, auto
+from config_loader import Config
 
 class TagMode(Enum):
     BASIC = auto()
     FULL = auto()
 class TagList:
     def __init__(self):
-        self.tags = self.get_config()
+        self.tags = Config().get().get('tags', {})
 
-    def get_config(self):
-        with open(os.path.join(sys.path[0], 'config.json'), "r") as config_file:
-            config_data = config_file.read()
-            config_info = json.loads(config_data)
-        return config_info.get('tags', {})
+
     # def fault_tag_list(self):
     #     returnList = [
     #         self.tags['Faulted'],
@@ -22,6 +16,32 @@ class TagList:
     #         self.tags['KeyenceFltCode']
     #     ]
     #     return returnList
+
+    def bool_tag_list(self)->dict:
+        tags = {
+            'Done': False,
+            'Pass': False,
+            'Busy': False,
+            'Fail': False,
+            'Ready': True
+        }
+        return tags
+
+    def fault_tag_list(self)->dict:
+        fault_tag_data = {
+            'Faulted': False,
+            'PhoenixFltCode': 0,
+            'KeyenceFltCode': 0,
+            'FaultStatus': 0,
+            'Done': False,
+            'Pass': False,
+            'Busy': False,
+            'Fail': False,
+            'PartProgram': 0,
+            'Ready': True,
+        }
+        return fault_tag_data
+
     def results(self): 
         returnList = [
             'DefectNumber',
