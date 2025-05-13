@@ -3,8 +3,13 @@ from pycomm3.tag import Tag
 from tag_lists import TagList, TagMode
 from enum import Enum, auto
 from config_loader import Config
+from plc_write import PhoenixWriter
+
 
 def handle_exceptions(func):
+    '''
+    This will have to go into its own file
+    '''
     def wrapper(*args, **kwargs):
         self = args[0]  # assuming the first argument is 'self'
         try:
@@ -37,8 +42,10 @@ class PhoenixPLC:
         self.check_pass_tag = f"{self.write_prefix}CHECK_PASS."
         self.heartbeat_tag = f'{self.write_prefix}HEARTBEAT'
         self.tag_list = TagList()
-        self.fault_flush_tags = self.tag_list.fault_tag_list()
-        self.bool_tags = self.tag_list.bool_tag_list()
+        self.fault_flush_tags = self.tag_list.fault_reset()
+        self.bool_tags = self.tag_list.bool_reset()
+        self.input_tags = self.tag_list.inputs(TagMode.BASIC)
+        self.write = PhoenixWriter(self)
 
     @handle_exceptions
     def open_connection(self)-> None:
@@ -88,64 +95,64 @@ class PhoenixPLC:
         return read_dict # Return the dictionary of tag values
     #END 
 
-    @handle_exceptions
-    def write_batch(self,results: dict) -> None:
-        """
-        Writes the results to the PLC using the pycomm3 library.
-        :param results: A dictionary containing the tag names and their corresponding values.
-        :return: None
-        """
-        input_tags = self.tag_list.inputs(TagMode.BASIC)
-        for i in input_tags:
-            tag = f"{self.write_prefix}{i}"
-            if i not in results:
-                raise KeyError(f"Tag '{i}' not found in the results dictionary.")
-            value = results[i][1]
-            self.plc.write((tag, value))
-    # END write_plc
+    # @handle_exceptions
+    # def write_batch(self,results: dict) -> None:
+    #     """
+    #     Writes the results to the PLC using the pycomm3 library.
+    #     :param results: A dictionary containing the tag names and their corresponding values.
+    #     :return: None
+    #     """
+    #     # input_tags = self.tag_list.inputs(TagMode.BASIC)
+    #     for i in self.input_tags:
+    #         tag = f"{self.write_prefix}{i}"
+    #         if i not in results:
+    #             raise KeyError(f"Tag '{i}' not found in the results dictionary.")
+    #         value = results[i][1]
+    #         self.plc.write((tag, value))
+    # # END write_plc
 
-    @handle_exceptions
-    def write_single(self,tag_name:str, tag_val) -> None:
-        """
-        Writes a single tag to the PLC using the pycomm3 library.
-        :param tag_name: The name of the tag to write.
-        :param tag_val: The value to write to the tag.
-        :return: None
-        """
-        tag = f"{self.write_prefix}{self.config_info['tags'][tag_name]}"
-        self.plc.write((tag, tag_val))
+    # @handle_exceptions
+    # def write_single(self,tag_name:str, tag_val) -> None:
+    #     """
+    #     Writes a single tag to the PLC using the pycomm3 library.
+    #     :param tag_name: The name of the tag to write.
+    #     :param tag_val: The value to write to the tag.
+    #     :return: None
+    #     """
+    #     tag = f"{self.write_prefix}{self.config_info['tags'][tag_name]}"
+    #     self.plc.write((tag, tag_val))
 
-    @handle_exceptions
-    def set_bool_tags(self) -> None:
-        """
-        """
-        for tag_name, tag_val in self.bool_tags.items():
-            self.write_single(tag_name, tag_val)
+    # @handle_exceptions
+    # def set_bool_tags(self) -> None:
+    #     """
+    #     """
+    #     for tag_name, tag_val in self.bool_tags.items():
+    #         self.write_single(tag_name, tag_val)
     #END set_bool_tags
 
-    @handle_exceptions
-    def fault_flush(self)-> None:
-        """
-        Flushes PLC fault tags to default values.
-        :return: None
-        """
-        for tag_name, tag_val in self.fault_flush_tags.items():
-            self.write_single(tag_name, tag_val)
-    #END fault_flush
+    # @handle_exceptions
+    # def fault_flush(self)-> None:
+    #     """
+    #     Flushes PLC fault tags to default values.
+    #     :return: None
+    #     """
+    #     for tag_name, tag_val in self.fault_flush_tags.items():
+    #         self.write_single(tag_name, tag_val)
+    # #END fault_flush
 
-    @handle_exceptions
-    def write_flush(self) -> None:
-        """
-        Flushes PLC data mirroring tags (to 0)
-        """
-        default = {'PUN{64}': [0] * 64 }
-        input_tags = self.tag_list.inputs(TagMode.FULL)
-        for tag in input_tags:
-            if tag == 'PUN':
-                self.plc.write((self.write_prefix + tag, default['PUN{64}']))
-            else:
-                self.plc.write((self.write_prefix + tag, 0))
-    #END write_plc_flush
+    # @handle_exceptions
+    # def write_flush(self) -> None:
+    #     """
+    #     Flushes PLC data mirroring tags (to 0)
+    #     """
+    #     default = {'PUN{64}': [0] * 64 }
+    #     input_tags = self.tag_list.inputs(TagMode.FULL)
+    #     for tag in input_tags:
+    #         if tag == 'PUN':
+    #             self.plc.write((self.write_prefix + tag, default['PUN{64}']))
+    #         else:
+    #             self.plc.write((self.write_prefix + tag, 0))
+    # #END write_plc_flush
 
     @handle_exceptions
     def reset_tags(self, reset_type: 'PhoenixPLC.ResetType') -> None:

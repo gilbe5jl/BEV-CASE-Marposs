@@ -51,10 +51,10 @@ class Bravo:
         return (end_time - start_time).total_seconds() * 1000
     def alpha(self):
     # self.logger.self.logger.log_print(f'({machine_num})[STAGE:0] Flushing PLC(FAULT) Tags...\n')
-        self.plc.fault_flush() # Fault Codes and raise ready
+        self.plc.write.fault_flush() # Fault Codes and raise ready
         fault_code = self.keyence.check_fault()
         self.plc.raise_keyence_fault(fault_code)
-        self.plc.set_bool_tags()
+        self.plc.write.bool_set()
     
     def check_load(self) -> bool:
         tag_data = self.plc.batch_read()
@@ -88,8 +88,8 @@ class Bravo:
             tag_data_og = self.tag_data.copy()
             self.part_program = self.tag_data['PART_PROGRAM'][1]
             if int(self.part_program) != 0:
-                self.plc.write_single('Ready', False)  # Setting PLC(READY) low
-                self.plc.write_batch(tag_data_og)             # Mirror data after load
+                self.plc.write.single('Ready', False)  # Setting PLC(READY) low
+                self.plc.write.batch(tag_data_og)             # Mirror data after load
                 self.part_type = self.tag_data['PART_TYPE'][1]
                 swap_check = self.keyence.swap_check(self.part_type)  # Ensure Keyence has proper program loaded
                 self.keyence_string = self.keyence.string_generator(self.part_type, self.part_program)
@@ -122,7 +122,7 @@ class Bravo:
             self.keyence_string = str(pun_str[10:22]) + '_' + str(self.tag_data[config_info['tags']['Year']][1]) + '-' + datetime_info_len_check[0] + '-' + datetime_info_len_check[1] + '-' + datetime_info_len_check[2] + '-' + datetime_info_len_check[3] + '-' + datetime_info_len_check[4] + '_' + self.keyence_string
             self.logger.log_print(self.machine_num,f'LOADING KEYENCE: Part Program ({self.part_program}),({self.keyence_string})\n')
             self.keyence.load(self.part_program, self.keyence_string)
-            self.plc.write_single('Ready', True)
+            self.plc.write.single('Ready', True)
             self.logger.log_print(self.machine_num,f'[STAGE:1] Waiting for START_PROGRAM')
         except Exception as error:
             self.logger.log_print(self.machine_num,f'Error: {error}')
@@ -142,7 +142,7 @@ class Bravo:
         self.tag_data = self.plc.batch_read()
         self.start_trigger_timer = datetime.datetime.now()
         self.keyence.trigger()
-        self.plc.write_single('Busy', True)
+        self.plc.write.single('Busy', True)
         end_trigger_timer = datetime.datetime.now()
         exe_time = self.calc_time(self.start_trigger_timer, end_trigger_timer)
         if (exe_time > 3000): self.plc.write_fault(self.plc.FaultType.GENERAL) ; self.logger.log_print(self.machine_num,f'[STAGE:1] KEYENCE TRIGGER TIMEOUT');self.keyence.disconnect() ; return False
@@ -159,9 +159,9 @@ class Bravo:
         self.logger.log_print(f'[STAGE:1] TERMINATING KEYENCE PROGRAM')
         end_trigger_timer = datetime.datetime.now()
         self.scan_duration = (end_trigger_timer - self.start_trigger_timer).total_seconds() * 1000
-        self.plc.write_single('Busy', False)
+        self.plc.write.single('Busy', False)
         start_result_timer = datetime.datetime.now()
-        self.plc.write_single('Ready', False)
+        self.plc.write.single('Ready', False)
         self.keyence.monitor_not_running()
         end_result_timer = datetime.datetime.now()
         exe_time = self.calc_time(start_result_timer, end_result_timer)
@@ -185,7 +185,7 @@ class Bravo:
         Raise DONE high and returns END_PROGRAM bool
         '''
         self.logger.log_print(f'[STAGE:2] DONE is High, Waiting for END_PROGRAM\n')
-        self.plc.write_single('Done', True)
+        self.plc.write.single('Done', True)
         tag = self.plc.read_tag('EndProgram')
         end_program = tag['END_PROGRAM'][1]
         return end_program
@@ -200,8 +200,8 @@ class Bravo:
         print(f'[STAGE:2] END_PROGRAM is High\n')
         self.plc.reset_tags(self.plc.ResetType.CYCLE_RESET) #Reset bool tags
         self.plc.flush_check_pass() #Flush Check/Pass data before sending data to PLC again
-        self.plc.write_flush() # defaults all .I Phoenix tags at start of cycle
-        self.plc.write_single('Ready', True)
+        self.plc.write.flush() # defaults all .I Phoenix tags at start of cycle
+        self.plc.write.single('Ready', True)
         print(f'[STAGE:2] CYCLE COMPLETE\n')
     
     def heartbeat(self):

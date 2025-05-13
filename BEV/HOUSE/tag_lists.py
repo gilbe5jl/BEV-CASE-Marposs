@@ -17,7 +17,7 @@ class TagList:
     #     ]
     #     return returnList
 
-    def bool_tag_list(self)->dict:
+    def bool_reset(self)->dict:
         tags = {
             'Done': False,
             'Pass': False,
@@ -27,7 +27,7 @@ class TagList:
         }
         return tags
 
-    def fault_tag_list(self)->dict:
+    def fault_reset(self)->dict:
         fault_tag_data = {
             'Faulted': False,
             'PhoenixFltCode': 0,
@@ -81,6 +81,11 @@ class TagList:
         return returnList
     
     def inputs(self,mode: TagMode):
+        """
+        Returns a list of input tags based on the specified mode.
+        :param mode: The mode to determine which tags to include.
+        :return: A list of input tags.
+        """
         tags = self.tags
         base_tags = [
             tags['PartType'],
