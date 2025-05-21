@@ -1,5 +1,7 @@
 from plc_utils import PhoenixPLC
 from tag_lists import TagMode
+from pycomm3 import CommError
+
 
 def handle_exceptions(func):
     '''

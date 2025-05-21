@@ -253,7 +253,7 @@ class PhoenixKeyence:
                 print(f'({self.machine_num}) KeyenceFltCode:',data)
                 return data
             return None
-        except (ConnectionResetError, ConnectionRefusedError, ConnectionError,ConnectionAbortedError,TimeoutError) as error:
+        except (ConnectionResetError, ConnectionRefusedError, ConnectionError,ConnectionAbortedError,TimeoutError,IndexError) as error:
             write_plc_single(LogixDriver(plc_ip),machine_num,'PhoenixFltCode',1)
             print(f"{machine_num} keyence connection error: {error}")
             #logger.log_print(machine_num, f"keyence connection error: {error}")
